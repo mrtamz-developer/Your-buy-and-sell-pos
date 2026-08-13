@@ -2963,9 +2963,24 @@ document.addEventListener(
 
         if (!button) return;
 
-        navigate(
+                navigate(
             button.dataset.page
         );
+
+        // Close sidebar after selecting a page on mobile
+        const sidebar =
+            document.querySelector(
+                ".sidebar"
+            );
+
+        if (
+            sidebar &&
+            window.innerWidth <= 800
+        ) {
+            sidebar.classList.remove(
+                "open"
+            );
+        }
 
     }
 );
