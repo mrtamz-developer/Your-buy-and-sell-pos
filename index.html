@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f5132">
+  <title>Points of Buy & Sell</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">P</div><div><strong>Points</strong><span>of Buy & Sell</span></div></div>
+    <nav id="nav">
+      <button class="nav-btn active" data-page="dashboard">⌂ <span>Dashboard</span></button>
+      <button class="nav-btn" data-page="sell">▣ <span>Sell</span></button>
+      <button class="nav-btn" data-page="buy">＋ <span>Buy</span></button>
+      <button class="nav-btn" data-page="products">▤ <span>Products</span></button>
+      <button class="nav-btn" data-page="inventory">◫ <span>Inventory</span></button>
+      <button class="nav-btn" data-page="customers">♙ <span>Customers</span></button>
+      <button class="nav-btn" data-page="suppliers">♜ <span>Suppliers</span></button>
+      <button class="nav-btn" data-page="reports">▥ <span>Reports</span></button>
+      <button class="nav-btn" data-page="settings">⚙ <span>Settings</span></button>
+    </nav>
+    <div class="sidebar-foot">Buy → Stock → Sell → Profit</div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <button id="menuBtn" class="mobile-menu">☰</button>
+      <div><h1 id="pageTitle">Dashboard</h1><p id="pageSubtitle">Your business at a glance</p></div>
+      <div class="top-actions"><span id="today"></span><button class="outline" onclick="resetDemo()">Reset Demo</button></div>
+    </header>
+
+    <section id="content" class="content"></section>
+  </main>
+</div>
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
