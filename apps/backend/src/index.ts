@@ -1,9 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from './prisma';
+import productsRouter from './routes/products';
+import inventoryRouter from './routes/inventory';
+import salesRouter from './routes/sales';
 
 dotenv.config();
 
@@ -19,13 +21,13 @@ function sign(user: { id: string; email: string }) {
 }
 
 app.post('/api/auth/register', async (req, res) => {
-  const { email, password, name } = req.body;
+  const { email, password, name, role, storeId } = req.body;
   if (!email || !password) return res.status(400).json({ message: 'email and password required' });
   try {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(409).json({ message: 'email exists' });
-    const hash = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({ data: { email, passwordHash: hash, name } });
+    const hash = await import('bcryptjs').then(m => m.hash(password, 10));
+    const user = await prisma.user.create({ data: { email, passwordHash: hash, name, role, storeId } });
     const token = sign({ id: user.id, email: user.email });
     res.json({ token });
   } catch (e) {
@@ -40,7 +42,7 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const u = await prisma.user.findUnique({ where: { email } });
     if (!u) return res.status(401).json({ message: 'invalid credentials' });
-    const ok = await bcrypt.compare(password, u.passwordHash);
+    const ok = await import('bcryptjs').then(m => m.compare(password, u.passwordHash));
     if (!ok) return res.status(401).json({ message: 'invalid credentials' });
     const token = sign({ id: u.id, email: u.email });
     res.json({ token });
@@ -58,13 +60,22 @@ app.get('/api/auth/me', async (req, res) => {
     const payload = jwt.verify(token, JWT_SECRET) as any;
     const user = await prisma.user.findUnique({ where: { id: payload.id } });
     if (!user) return res.status(404).json({ message: 'user not found' });
-    res.json({ user: { id: user.id, email: user.email, name: user.name } });
+    res.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (e) {
     console.error(e);
     res.status(401).json({ message: 'invalid token' });
   }
 });
 
-app.get('/', (_req, res) => res.json({ ok: true, message: 'Backend scaffold running with Prisma' }));
+// Mount POS routes
+app.use('/api/products', productsRouter);
+app.use('/api/inventory', inventoryRouter);
+app.use('/api/sales', salesRouter);
 
-app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`));
+app.get('/', (_req, res) => res.json({ ok: true, message: 'Backend scaffold running with Prisma and POS API' }));
+
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`));
+}
+
+export default app;
