@@ -1,9 +1,0 @@
-{
-  "name":"Points of Buy & Sell",
-  "short_name":"Buy & Sell",
-  "start_url":"./",
-  "display":"standalone",
-  "background_color":"#f5f7f5",
-  "theme_color":"#0f5132",
-  "description":"Buy, inventory, sell and profit management for small businesses."
-}
