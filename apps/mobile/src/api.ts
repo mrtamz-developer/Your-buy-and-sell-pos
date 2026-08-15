@@ -12,6 +12,11 @@ export async function fetchProducts() {
   return res.data.products;
 }
 
+export async function fetchCustomers() {
+  const res = await axios.get(`${API_BASE}/api/customers`);
+  return res.data.customers;
+}
+
 export async function createSale(token: string, sale: any) {
   const res = await axios.post(`${API_BASE}/api/sales`, sale, { headers: { Authorization: `Bearer ${token}` } });
   return res.data.sale;

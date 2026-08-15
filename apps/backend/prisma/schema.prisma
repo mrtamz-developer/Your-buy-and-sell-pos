@@ -10,7 +10,15 @@ generator client {
 enum PaymentMethod {
   CASH
   CARD
+  ONLINE_WALLET
+  POINTS
   OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }
 
 enum Role {
@@ -40,6 +48,7 @@ model Store {
   employees  User[]
   inventories Inventory[]
   sales      Sale[]
+  purchases  Purchase[]
   createdAt  DateTime  @default(now())
 }
 
@@ -53,6 +62,7 @@ model Product {
   storeId     String?
   inventories Inventory[]
   lineItems   SaleLineItem[]
+  purchaseLineItems PurchaseLineItem[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -73,6 +83,7 @@ model Customer {
   phone         String?
   email         String?
   loyaltyPoints Int     @default(0)
+  pointsBalance Int     @default(0)
   sales         Sale[]
   createdAt     DateTime @default(now())
 }
@@ -102,10 +113,43 @@ model SaleLineItem {
 }
 
 model Payment {
-  id        String        @id @default(uuid())
-  sale      Sale          @relation(fields: [saleId], references: [id])
-  saleId    String
-  amount    Int
-  method    PaymentMethod
-  createdAt DateTime      @default(now())
+  id               String        @id @default(uuid())
+  sale             Sale          @relation(fields: [saleId], references: [id])
+  saleId           String
+  amount           Int
+  method           PaymentMethod
+  status           PaymentStatus @default(COMPLETED)
+  externalReference String?
+  createdAt        DateTime      @default(now())
+}
+
+model Purchase {
+  id         String                @id @default(uuid())
+  store      Store?                @relation(fields: [storeId], references: [id])
+  storeId    String?
+  supplier   String?
+  total      Int
+  createdAt  DateTime              @default(now())
+  lineItems  PurchaseLineItem[]
+}
+
+model PurchaseLineItem {
+  id         String   @id @default(uuid())
+  purchase   Purchase @relation(fields: [purchaseId], references: [id])
+  purchaseId String
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  String
+  quantity   Int
+  unitPrice  Int
+}
+
+model PointsLedger {
+  id           String   @id @default(uuid())
+  customer     Customer @relation(fields: [customerId], references: [id])
+  customerId   String
+  change        Int
+  reason        String
+  balanceAfter  Int
+  meta          Json?
+  createdAt     DateTime @default(now())
 }
