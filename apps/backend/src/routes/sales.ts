@@ -4,18 +4,53 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-// Create a sale (transactional) with points support
-// body: { storeId, customerId?, lineItems: [{productId, quantity, unitPrice}], payments: [{amount, method}], pointsToUse }
+// Create a sale (transactional) with support for discounts and modifiers
+// body: { storeId, customerId?, lineItems: [{productId, quantity, unitPrice, modifiers? }], payments: [{amount, method}], pointsToUse, discounts: [{name,type,value}] }
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
-  const { storeId, customerId, lineItems, payments, pointsToUse } = req.body;
+  const { storeId, customerId, lineItems, payments, pointsToUse, discounts } = req.body;
   const employeeId = req.user?.id;
   if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) return res.status(400).json({ message: 'lineItems required' });
 
   const earnDivisor = Number(process.env.POINTS_EARN_DIVISOR || 100);
   const redemptionRate = Number(process.env.POINTS_REDEMPTION_RATE || 1); // cents per point
 
-  // compute total in cents
-  const total = lineItems.reduce((acc: number, li: any) => acc + (li.unitPrice || 0) * (li.quantity || 0), 0);
+  // compute subtotal and apply line-level modifiers/discounts
+  let subtotal = 0;
+  for (const li of lineItems) {
+    const base = (li.unitPrice || 0) * (li.quantity || 0);
+    let delta = 0;
+    // modifiers: array of { optionId, priceDelta }
+    if (Array.isArray(li.modifiers)) {
+      for (const m of li.modifiers) {
+        delta += Number(m.priceDelta || 0) * (li.quantity || 1);
+      }
+    }
+    let lineTotal = base + delta;
+    // line-level discount
+    if (li.discount) {
+      const d = li.discount;
+      if (d.type === 'PERCENT') {
+        lineTotal = Math.round(lineTotal * (10000 - d.value) / 10000);
+      } else {
+        lineTotal = Math.max(0, lineTotal - (d.value || 0));
+      }
+    }
+    subtotal += lineTotal;
+  }
+
+  // cart-level discounts
+  let cartDiscountValue = 0;
+  if (Array.isArray(discounts)) {
+    for (const d of discounts) {
+      if (d.type === 'PERCENT') {
+        cartDiscountValue += Math.round(subtotal * (d.value || 0) / 10000);
+      } else {
+        cartDiscountValue += Number(d.value || 0);
+      }
+    }
+  }
+
+  const totalBeforePoints = Math.max(0, subtotal - cartDiscountValue);
 
   try {
     // If pointsToUse provided, validate customer has enough
@@ -30,7 +65,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       pointsValue = ptsToUse * redemptionRate;
     }
 
-    const totalAfterPoints = Math.max(0, total - pointsValue);
+    const totalAfterPoints = Math.max(0, totalBeforePoints - pointsValue);
 
     const result = await prisma.$transaction(async (tx) => {
       // Check inventory availability and decrement
@@ -63,13 +98,16 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
           customerId,
           total: totalAfterPoints,
           lineItems: {
-            create: lineItems.map((li: any) => ({ productId: li.productId, quantity: li.quantity, unitPrice: li.unitPrice })),
+            create: lineItems.map((li: any) => ({ productId: li.productId, quantity: li.quantity, unitPrice: li.unitPrice, modifiers: li.modifiers ? JSON.stringify(li.modifiers) : undefined })),
           },
           payments: {
             create: paymentsToCreate,
           },
+          discounts: {
+            create: Array.isArray(discounts) ? discounts.map((d:any)=>({ name: d.name, type: d.type, value: d.value })) : [],
+          }
         },
-        include: { lineItems: true, payments: true },
+        include: { lineItems: true, payments: true, discounts: true },
       });
 
       // Handle points deduction and earning
@@ -78,7 +116,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         if (customer) {
           const newBalanceAfterDeduct = customer.pointsBalance - ptsToUse;
           await tx.customer.update({ where: { id: customerId }, data: { pointsBalance: newBalanceAfterDeduct } });
-          await tx.pointsLedger.create({ data: { customerId, change: -ptsToUse, reason: 'Redeemed on sale', balanceAfter: newBalanceAfterDeduct } });
+          await tx.pointsLedger.create({ data: { customerId, change: -ptsToUse, reason: 'Redeemed on sale', balanceAfter: newBalanceAfterDeduct, meta: { saleId: sale.id } } });
         }
       }
 
@@ -90,7 +128,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
           if (customer) {
             const newBalance = customer.pointsBalance + pointsEarned;
             await tx.customer.update({ where: { id: customerId }, data: { pointsBalance: newBalance } });
-            await tx.pointsLedger.create({ data: { customerId, change: pointsEarned, reason: 'Points earned on sale', balanceAfter: newBalance } });
+            await tx.pointsLedger.create({ data: { customerId, change: pointsEarned, reason: 'Points earned on sale', balanceAfter: newBalance, meta: { saleId: sale.id } } });
           }
         }
       }

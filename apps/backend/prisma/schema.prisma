@@ -63,8 +63,37 @@ model Product {
   inventories Inventory[]
   lineItems   SaleLineItem[]
   purchaseLineItems PurchaseLineItem[]
+  modifiers   Modifier[]
+  variants    Variant[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Variant {
+  id        String @id @default(uuid())
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  name      String
+  sku       String? @unique
+  price     Int?    // optional override in cents
+}
+
+model Modifier {
+  id        String @id @default(uuid())
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  name      String
+  minSelect Int? @default(0)
+  maxSelect Int? @default(1)
+  options   ModifierOption[]
+}
+
+model ModifierOption {
+  id         String @id @default(uuid())
+  modifier   Modifier @relation(fields: [modifierId], references: [id])
+  modifierId String
+  name       String
+  priceDelta Int @default(0) // cents to add/subtract
 }
 
 model Inventory {
@@ -100,6 +129,7 @@ model Sale {
   createdAt  DateTime        @default(now())
   lineItems  SaleLineItem[]
   payments   Payment[]
+  discounts  Discount[]
 }
 
 model SaleLineItem {
@@ -110,6 +140,17 @@ model SaleLineItem {
   productId String
   quantity  Int     @default(1)
   unitPrice Int
+  // store selected modifiers/options as JSON for reference
+  modifiers Json?
+}
+
+model Discount {
+  id        String @id @default(uuid())
+  sale      Sale?  @relation(fields: [saleId], references: [id])
+  saleId    String?
+  name      String
+  type      String // 'PERCENT' | 'FIXED'
+  value     Int    // for percent store 10000 = 100.00% or for fixed cents
 }
 
 model Payment {
@@ -141,6 +182,15 @@ model PurchaseLineItem {
   productId  String
   quantity   Int
   unitPrice  Int
+}
+
+model Refund {
+  id         String   @id @default(uuid())
+  sale       Sale     @relation(fields: [saleId], references: [id])
+  saleId     String
+  amount     Int
+  createdAt  DateTime @default(now())
+  reason     String?
 }
 
 model PointsLedger {
