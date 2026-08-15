@@ -8,11 +8,12 @@ Quick start
    - Edit apps/backend/.env and set DATABASE_URL and JWT_SECRET
 2. From repository root, install dependencies: `pnpm install`
 3. Start Postgres: `docker-compose up -d`
-4. From repo root, run Prisma migrations / generate:
-   - cd apps/backend
-   - pnpm prisma:generate
-   - pnpm prisma:migrate
-5. Start the backend in dev mode:
+4. From repo root, run Prisma generate and migrations:
+   - pnpm --filter ./apps/backend prisma:generate
+   - pnpm --filter ./apps/backend prisma:migrate
+5. Seed the database with sample data:
+   - pnpm --filter ./apps/backend run seed
+6. Start the backend in dev mode:
    - pnpm --filter ./apps/backend dev
 
 Available endpoints
@@ -21,5 +22,5 @@ Available endpoints
 - GET  /api/auth/me (Authorization: Bearer <token>)
 
 Notes
-- This replaces the file-backed user store with a Postgres-backed Prisma model.
+- This replaces the file-backed user store with a Postgres-backed Prisma models.
 - For production, review Prisma migration commands and use `prisma migrate deploy` in CI/CD.

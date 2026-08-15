@@ -7,11 +7,105 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum PaymentMethod {
+  CASH
+  CARD
+  OTHER
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  CASHIER
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String
   name         String?
+  role         Role     @default(CASHIER)
+  store        Store?   @relation(fields: [storeId], references: [id])
+  storeId      String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  sales        Sale[]
+}
+
+model Store {
+  id         String    @id @default(uuid())
+  name       String
+  address    String?
+  products   Product[]
+  employees  User[]
+  inventories Inventory[]
+  sales      Sale[]
+  createdAt  DateTime  @default(now())
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  sku         String?  @unique
+  price       Int      @default(0) // price in cents
+  store       Store?   @relation(fields: [storeId], references: [id])
+  storeId     String?
+  inventories Inventory[]
+  lineItems   SaleLineItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Inventory {
+  id        String   @id @default(uuid())
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int      @default(0)
+  store     Store?   @relation(fields: [storeId], references: [id])
+  storeId   String?
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id            String  @id @default(uuid())
+  name          String?
+  phone         String?
+  email         String?
+  loyaltyPoints Int     @default(0)
+  sales         Sale[]
+  createdAt     DateTime @default(now())
+}
+
+model Sale {
+  id         String          @id @default(uuid())
+  store      Store?          @relation(fields: [storeId], references: [id])
+  storeId    String?
+  employee   User?           @relation(fields: [employeeId], references: [id])
+  employeeId String?
+  customer   Customer?       @relation(fields: [customerId], references: [id])
+  customerId String?
+  total      Int
+  createdAt  DateTime        @default(now())
+  lineItems  SaleLineItem[]
+  payments   Payment[]
+}
+
+model SaleLineItem {
+  id        String  @id @default(uuid())
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  saleId    String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int     @default(1)
+  unitPrice Int
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  sale      Sale          @relation(fields: [saleId], references: [id])
+  saleId    String
+  amount    Int
+  method    PaymentMethod
+  createdAt DateTime      @default(now())
 }
